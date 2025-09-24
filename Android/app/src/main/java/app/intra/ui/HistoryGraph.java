@@ -18,14 +18,12 @@ package app.intra.ui;
 import android.content.Context;
 import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.PointF;
-import android.graphics.RadialGradient;
-import android.graphics.Shader;
+import android.graphics.Shader.TileMode;
 import android.os.Build;
+import android.os.Build.VERSION_CODES;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.View;
@@ -55,24 +53,16 @@ public class HistoryGraph extends View implements ActivityReceiver {
 
   private QueryTracker tracker;
   private Paint dataPaint;   // Paint for the QPS curve itself.
+  private Paint pulsePaint;  // Paint for the radiating pulses that also serve as x-axis marks.
   private Paint glowPaint;   // Paint for glow effect
   private Paint fillPaint;   // Paint for filled area
-  private Paint pulsePaint;  // Paint for the radiating pulses that also serve as x-axis marks.
-  private Paint particlePaint; // Paint for particle effects
+  private Paint particlePaint; // Paint for particles
   private Paint sparklePaint; // Paint for sparkle effects
 
   // Preallocate the curve to reduce garbage collection pressure.
   private int range = WINDOW_MS / RESOLUTION_MS;
   private float[] curve = new float[range];
   private float[] lines = new float[(curve.length - 1) * 4];
-
-  // Particle system
-  private Particle[] particles = new Particle[50];
-  private Random random = new Random();
-  
-  // Sparkle system
-  private Sparkle[] sparkles = new Sparkle[20];
-  private long lastSparkleTime = 0;
 
   // Indicate whether the current curve is all zero, which allows an optimization.
   private boolean curveIsEmpty = true;
@@ -84,9 +74,12 @@ public class HistoryGraph extends View implements ActivityReceiver {
   // Value of SystemClock.elapsedRealtime() for the current frame.
   private long now;
 
-  // Animation states
-  private float rippleProgress = 0;
-  private float glowIntensity = 0;
+  // Particle system variables
+  private Particle[] particles = new Particle[50];
+  private Random random = new Random();
+
+  // Sparkle effects
+  private float[] sparkles = new float[20]; // x, y, size, alpha for each sparkle
 
   public HistoryGraph(Context context, AttributeSet attrs) {
     super(context, attrs);
@@ -100,11 +93,11 @@ public class HistoryGraph extends View implements ActivityReceiver {
     }
     
     // Initialize sparkles
-    for (int i = 0; i < sparkles.length; i++) {
-      sparkles[i] = new Sparkle();
+    for (int i = 0; i < sparkles.length; i += 4) {
+      sparkles[i] = -1; // Mark as inactive
     }
 
-    // Main data paint with gradient
+    // Main data paint with glow effect
     dataPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     dataPaint.setStrokeWidth(DATA_STROKE_WIDTH);
     dataPaint.setStyle(Paint.Style.STROKE);
@@ -116,11 +109,12 @@ public class HistoryGraph extends View implements ActivityReceiver {
     glowPaint.setStrokeWidth(DATA_STROKE_WIDTH + 8);
     glowPaint.setStyle(Paint.Style.STROKE);
     glowPaint.setStrokeCap(Paint.Cap.ROUND);
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+    glowPaint.setColor(color);
+    if (Build.VERSION.SDK_INT >= VERSION_CODES.HONEYCOMB) {
       glowPaint.setMaskFilter(new BlurMaskFilter(15, BlurMaskFilter.Blur.NORMAL));
     }
 
-    // Fill area paint
+    // Fill paint for area under curve
     fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     fillPaint.setStyle(Paint.Style.FILL);
 
@@ -133,33 +127,24 @@ public class HistoryGraph extends View implements ActivityReceiver {
     // Particle paint
     particlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     particlePaint.setStyle(Paint.Style.FILL);
-    particlePaint.setColor(Color.argb(200, 255, 255, 255));
+    particlePaint.setColor(color);
 
     // Sparkle paint
     sparklePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     sparklePaint.setStyle(Paint.Style.FILL);
-    sparklePaint.setColor(Color.WHITE);
-    
-    updatePaintsColor(color);
-  }
-
-  private void updatePaintsColor(int color) {
-    dataPaint.setColor(color);
-    glowPaint.setColor(color);
-    pulsePaint.setColor(color);
-    fillPaint.setColor(color);
-    
-    // Set glow with alpha
-    glowPaint.setAlpha(100);
-    
-    updateDataShader(getWidth(), getHeight());
+    sparklePaint.setColor(0xFFFFFFFF); // White sparkles
   }
 
   /**
    * @param color ARGB color to use for the lines in subsequent frames
    */
   public void setColor(int color) {
-    updatePaintsColor(color);
+    dataPaint.setColor(color);
+    glowPaint.setColor(color);
+    pulsePaint.setColor(color);
+    particlePaint.setColor(color);
+    updateDataShader(getWidth());
+    updateFillShader(getWidth(), getHeight());
   }
 
   // Gaussian curve formula.  (Not normalized.)
@@ -226,29 +211,21 @@ public class HistoryGraph extends View implements ActivityReceiver {
 
   @Override
   protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-    updateDataShader(w, h);
+    updateDataShader(w);
+    updateFillShader(w, h);
   }
 
-  private void updateDataShader(int width, int height) {
+  private void updateDataShader(int width) {
     int color = dataPaint.getColor();
-    int transparentColor = color & 0x00FFFFFF;
-    
-    // Create beautiful gradient for main line
-    int[] gradientColors = {
-        Color.argb(255, Color.red(color), Color.green(color), Color.blue(color)),
-        Color.argb(200, Color.red(color), Color.green(color), Color.blue(color)),
-        Color.argb(100, Color.red(color), Color.green(color), Color.blue(color)),
-        Color.argb(50, Color.red(color), Color.green(color), Color.blue(color))
-    };
-    float[] positions = {0f, 0.3f, 0.7f, 1f};
-    
-    dataPaint.setShader(new LinearGradient(0, 0, width, 0, 
-        gradientColors, positions, Shader.TileMode.CLAMP));
-    
-    // Fill gradient (vertical)
-    int fillStart = Color.argb(80, Color.red(color), Color.green(color), Color.blue(color));
-    int fillEnd = Color.argb(10, Color.red(color), Color.green(color), Color.blue(color));
-    fillPaint.setShader(new LinearGradient(0, 0, 0, height, fillStart, fillEnd, Shader.TileMode.CLAMP));
+    int glowColor = color | 0xFF000000; // Ensure full opacity for glow
+    glowPaint.setShader(new LinearGradient(0, 0, width, 0,
+        glowColor, glowColor & 0x80FFFFFF, TileMode.CLAMP));
+  }
+
+  private void updateFillShader(int width, int height) {
+    int color = dataPaint.getColor();
+    fillPaint.setShader(new LinearGradient(0, 0, 0, height,
+        color & 0x60FFFFFF, color & 0x10FFFFFF, TileMode.CLAMP));
   }
 
   @Override
@@ -279,177 +256,149 @@ public class HistoryGraph extends View implements ActivityReceiver {
     setMeasuredDimension(width, height);
   }
 
-  // Particle class for special effects
-  private class Particle {
-    float x, y;
-    float vx, vy;
-    float life;
-    float maxLife;
-    boolean active = false;
-    
-    void activate(float startX, float startY, float velocity) {
-      x = startX;
-      y = startY;
-      vx = (random.nextFloat() - 0.5f) * velocity;
-      vy = (random.nextFloat() - 0.5f) * velocity;
-      life = 0;
-      maxLife = 0.5f + random.nextFloat() * 1.0f;
-      active = true;
-    }
-    
-    void update(float deltaTime) {
-      if (!active) return;
-      
-      x += vx * deltaTime * 60;
-      y += vy * deltaTime * 60;
-      life += deltaTime;
-      vy += 0.1f; // gravity
-      
-      if (life > maxLife) {
-        active = false;
-      }
-    }
-    
-    void draw(Canvas canvas) {
-      if (!active) return;
-      
-      float alpha = 1 - (life / maxLife);
-      particlePaint.setAlpha((int)(alpha * 200));
-      canvas.drawCircle(x, y, 2 * alpha, particlePaint);
-    }
-  }
-  
-  // Sparkle class for glitter effects
-  private class Sparkle {
-    float x, y;
-    float size;
-    float life;
-    float maxLife;
-    boolean active = false;
-    
-    void activate(float posX, float posY) {
-      x = posX;
-      y = posY;
-      size = 2 + random.nextFloat() * 4;
-      life = 0;
-      maxLife = 0.3f + random.nextFloat() * 0.4f;
-      active = true;
-    }
-    
-    void update(float deltaTime) {
-      if (!active) return;
-      
-      life += deltaTime;
-      if (life > maxLife) {
-        active = false;
-      }
-    }
-    
-    void draw(Canvas canvas) {
-      if (!active) return;
-      
-      float progress = life / maxLife;
-      float alpha = (progress < 0.5f) ? progress * 2 : 2 - progress * 2;
-      sparklePaint.setAlpha((int)(alpha * 255));
-      
-      // Draw star-like sparkle
-      canvas.drawCircle(x, y, size, sparklePaint);
-      canvas.drawCircle(x, y, size * 0.6f, sparklePaint);
-    }
-  }
+  // Draw filled area under the curve
+  private void drawFilledArea(Canvas canvas, float xoffset, float yoffset, 
+                            float xscale, float yscale) {
+    if (curveIsEmpty) return;
 
-  private void updateParticles(float deltaTime, float currentX, float currentY, float intensity) {
-    // Update existing particles
-    for (Particle particle : particles) {
-      particle.update(deltaTime);
-    }
-    
-    // Spawn new particles based on intensity
-    if (intensity > 0.1f) {
-      int particlesToSpawn = (int)(intensity * 5);
-      for (int i = 0; i < particlesToSpawn; i++) {
-        for (Particle particle : particles) {
-          if (!particle.active) {
-            particle.activate(currentX, currentY, 2 + intensity * 3);
-            break;
-          }
-        }
-      }
-    }
-  }
-  
-  private void updateSparkles(float deltaTime, float currentX, float currentY, float intensity) {
-    // Update existing sparkles
-    for (Sparkle sparkle : sparkles) {
-      sparkle.update(deltaTime);
-    }
-    
-    // Spawn sparkles occasionally
-    lastSparkleTime += (long)(deltaTime * 1000);
-    if (lastSparkleTime > 200 && intensity > 0.2f) { // Every 200ms max
-      lastSparkleTime = 0;
-      int sparklesToSpawn = random.nextInt(3);
-      for (int i = 0; i < sparklesToSpawn; i++) {
-        for (Sparkle sparkle : sparkles) {
-          if (!sparkle.active) {
-            float offsetX = (random.nextFloat() - 0.5f) * 20;
-            float offsetY = (random.nextFloat() - 0.5f) * 10;
-            sparkle.activate(currentX + offsetX, currentY + offsetY);
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  private void drawFilledArea(Canvas canvas, float[] lines, float yoffset) {
-    if (lines.length < 4) return;
-    
     Path path = new Path();
-    path.moveTo(lines[0], yoffset); // Start from bottom left
+    path.moveTo(xoffset, yoffset); // Start at bottom left
     
-    // Follow the curve
-    for (int i = 0; i < lines.length; i += 4) {
-      path.lineTo(lines[i], lines[i+1]);
+    for (int i = 0; i < curve.length; i++) {
+      float x = i * xscale + xoffset;
+      float y = curve[i] * yscale + yoffset;
+      if (i == 0) {
+        path.lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
     
-    // Close the path to bottom right
-    path.lineTo(lines[lines.length-2], yoffset);
+    // Close the path back to bottom right
+    path.lineTo((curve.length - 1) * xscale + xoffset, yoffset);
     path.close();
     
     canvas.drawPath(path, fillPaint);
   }
 
-  private void drawRippleEffect(Canvas canvas, float x, float y, float radius) {
+  // Draw glow effect behind the main line
+  private void drawGlowEffect(Canvas canvas, float[] lines) {
+    if (curveIsEmpty) return;
+    canvas.drawLines(lines, glowPaint);
+  }
+
+  // Draw particles that follow the curve peaks
+  private void drawParticles(Canvas canvas, float xoffset, float yoffset, 
+                           float xscale, float yscale) {
+    if (curveIsEmpty) return;
+
+    // Update particles
+    for (Particle particle : particles) {
+      if (!particle.active || particle.age > particle.lifetime) {
+        // Spawn new particle at random peak
+        if (random.nextFloat() < 0.3f) { // 30% chance each frame
+          int peakIndex = findRandomPeak();
+          if (peakIndex != -1) {
+            particle.x = peakIndex * xscale + xoffset;
+            particle.y = curve[peakIndex] * yscale + yoffset;
+            particle.vx = (random.nextFloat() - 0.5f) * 2f;
+            particle.vy = (random.nextFloat() - 0.5f) * 3f;
+            particle.lifetime = random.nextInt(60) + 30;
+            particle.age = 0;
+            particle.active = true;
+          }
+        }
+      }
+
+      if (particle.active) {
+        // Update position
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        particle.vy += 0.1f; // Gravity
+        particle.age++;
+        
+        // Draw particle
+        float alpha = 1f - (float) particle.age / particle.lifetime;
+        particlePaint.setAlpha((int) (alpha * 255));
+        canvas.drawCircle(particle.x, particle.y, 2f, particlePaint);
+      }
+    }
+  }
+
+  // Find random peak in the curve for particle spawning
+  private int findRandomPeak() {
+    if (curveIsEmpty) return -1;
+    
+    // Find local maxima
+    for (int attempt = 0; attempt < 10; attempt++) {
+      int i = random.nextInt(curve.length - 2) + 1;
+      if (curve[i] > curve[i-1] && curve[i] > curve[i+1] && curve[i] > max * 0.2f) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  // Draw sparkling effects at high points
+  private void drawSparkles(Canvas canvas, float xoffset, float yoffset,
+                          float xscale, float yscale) {
+    if (curveIsEmpty) return;
+
+    for (int i = 0; i < sparkles.length; i += 4) {
+      if (sparkles[i] == -1 && random.nextFloat() < 0.02f) {
+        // Spawn new sparkle at high point
+        int sparkleIndex = findHighPoint();
+        if (sparkleIndex != -1) {
+          sparkles[i] = sparkleIndex * xscale + xoffset; // x
+          sparkles[i+1] = curve[sparkleIndex] * yscale + yoffset; // y
+          sparkles[i+2] = random.nextFloat() * 3f + 1f; // size
+          sparkles[i+3] = 1f; // alpha
+        }
+      }
+
+      if (sparkles[i] != -1) {
+        // Update and draw sparkle
+        sparkles[i+3] -= 0.05f; // Fade out
+        if (sparkles[i+3] <= 0) {
+          sparkles[i] = -1; // Deactivate
+        } else {
+          sparklePaint.setAlpha((int) (sparkles[i+3] * 255));
+          canvas.drawCircle(sparkles[i], sparkles[i+1], sparkles[i+2], sparklePaint);
+          
+          // Draw glow around sparkle
+          sparklePaint.setAlpha((int) (sparkles[i+3] * 128));
+          canvas.drawCircle(sparkles[i], sparkles[i+1], sparkles[i+2] * 2f, sparklePaint);
+        }
+      }
+    }
+  }
+
+  private int findHighPoint() {
+    if (curveIsEmpty) return -1;
+    
+    for (int i = 1; i < curve.length - 1; i++) {
+      if (curve[i] > max * 0.5f && curve[i] > curve[i-1] && curve[i] > curve[i+1]) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  // Draw ripple effects from the current point
+  private void drawRippleEffects(Canvas canvas, float x, float y, float currentValue) {
+    float intensity = currentValue / Math.max(max, 1f);
+    
     for (int i = 0; i < 3; i++) {
-      float scale = 1 + i * 0.4f + rippleProgress * 0.5f;
-      int alpha = 80 - i * 25 - (int)(rippleProgress * 40);
-      if (alpha < 0) alpha = 0;
-      
+      float radius = DATA_STROKE_WIDTH * (1 + i) * intensity;
+      int alpha = (int) ((1f - i * 0.3f) * intensity * 100);
       pulsePaint.setAlpha(alpha);
-      pulsePaint.setStrokeWidth(2 + i * 1.5f);
-      canvas.drawCircle(x, y, radius * scale, pulsePaint);
+      canvas.drawCircle(x, y, radius, pulsePaint);
     }
   }
 
   @Override
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
-    
-    // Calculate delta time for smooth animations
-    long currentTime = SystemClock.elapsedRealtime();
-    static long lastFrameTime = currentTime;
-    float deltaTime = (currentTime - lastFrameTime) / 1000.0f;
-    lastFrameTime = currentTime;
-    
-    // Update animation states
-    rippleProgress += deltaTime * 2;
-    if (rippleProgress > 1) rippleProgress = 0;
-    
-    // Update glow intensity based on recent activity
-    float targetGlow = curveIsEmpty ? 0 : Math.min(1, curve[curve.length-1] / Math.max(1, max));
-    glowIntensity += (targetGlow - glowIntensity) * deltaTime * 5;
-
     // Normally the coordinate system puts 0,0 at the top left.  This puts it at the bottom right,
     // with positive axes pointed up and left.
     canvas.rotate(180, getWidth() / 2, getHeight() / 2);
@@ -463,15 +412,14 @@ public class HistoryGraph extends View implements ActivityReceiver {
 
     now = SystemClock.elapsedRealtime();
     float rightEndY;
-    float currentIntensity = 0;
-    
+    float xscale = usableWidth / (curve.length - 1);
+    float yscale = max == 0 ? 0 : usableHeight / max;
+
     if (updateCurve()) {
       updateMax();
+      yscale = max == 0 ? 0 : usableHeight / max;
 
-      float xscale = usableWidth / (curve.length - 1);
-      float yscale = max == 0 ? 0 : usableHeight / max;
-
-      // Convert the curve into lines in the appropriate scale
+      // Convert the curve into lines in the appropriate scale, and draw it.
       for (int i = 1; i < curve.length; ++i) {
         int j = (i - 1) * 4;
         lines[j] = (i - 1) * xscale + xoffset;
@@ -479,69 +427,54 @@ public class HistoryGraph extends View implements ActivityReceiver {
         lines[j + 2] = i * xscale + xoffset;
         lines[j + 3] = curve[i] * yscale + yoffset;
       }
-      
-      currentIntensity = curve[curve.length-1] / Math.max(1, max);
-      
-      // Draw filled area first
-      drawFilledArea(canvas, lines, yoffset);
-      
-      // Draw glow effect
-      glowPaint.setAlpha((int)(glowIntensity * 100));
-      canvas.drawLines(lines, glowPaint);
-      
-      // Draw main line
+
+      // Draw all effects in order
+      drawFilledArea(canvas, xoffset, yoffset, xscale, yscale);
+      drawGlowEffect(canvas, lines);
       canvas.drawLines(lines, dataPaint);
+      drawParticles(canvas, xoffset, yoffset, xscale, yscale);
+      drawSparkles(canvas, xoffset, yoffset, xscale, yscale);
       
       rightEndY = lines[1];
     } else {
       max = 0;
-      // Draw a horizontal line at y = 0
+      // Draw a horizontal line at y = 0.
       canvas.drawLine(xoffset, yoffset, xoffset + usableWidth, yoffset, dataPaint);
       rightEndY = yoffset;
-      currentIntensity = 0;
     }
 
-    // Update special effects
-    float currentX = xoffset;
-    updateParticles(deltaTime, currentX, rightEndY, currentIntensity);
-    updateSparkles(deltaTime, currentX, rightEndY, currentIntensity);
-
-    // Draw particles
-    for (Particle particle : particles) {
-      particle.draw(canvas);
-    }
-    
-    // Draw sparkles
-    for (Sparkle sparkle : sparkles) {
-      sparkle.draw(canvas);
-    }
-
-    // Draw ripple effect at the right end
-    float tagRadius = 3 * DATA_STROKE_WIDTH * (1 + glowIntensity * 0.5f);
+    // Draw enhanced circle at the right end of the line with ripple effects
+    float tagRadius = 3 * DATA_STROKE_WIDTH;
     float tagX = xoffset - tagRadius;
     
-    drawRippleEffect(canvas, tagX, rightEndY, tagRadius);
+    // Ripple effects from current point
+    drawRippleEffects(canvas, tagX, rightEndY, curveIsEmpty ? 0 : curve[curve.length-1]);
     
-    // Draw main endpoint with glow
-    dataPaint.setAlpha(255);
+    // Enhanced circle with glow
+    glowPaint.setStrokeWidth(tagRadius * 2);
+    canvas.drawCircle(tagX, rightEndY, tagRadius, glowPaint);
     canvas.drawCircle(tagX, rightEndY, tagRadius, dataPaint);
-    
-    // Draw inner bright point
-    sparklePaint.setAlpha(255);
-    canvas.drawCircle(tagX, rightEndY, tagRadius * 0.3f, sparklePaint);
 
-    // Draw pulses at regular intervals
+    // Draw pulses at regular intervals, growing and fading with age.
     float maxRadius = getWidth() - tagX;
     for (long age = now % PULSE_INTERVAL_MS; age < WINDOW_MS; age += PULSE_INTERVAL_MS) {
       float fraction = ((float) age) / WINDOW_MS;
       float radius = tagRadius + fraction * (maxRadius - tagRadius);
-      int alpha = (int) (150 * (1 - fraction));
+      int alpha = (int) (255 * (1 - fraction));
       pulsePaint.setAlpha(alpha);
-      pulsePaint.setStrokeWidth(1 + fraction * 3);
       canvas.drawCircle(tagX, yoffset, radius, pulsePaint);
     }
 
     // Draw the next frame at the UI's preferred update frequency.
     postInvalidateOnAnimation();
   }
+
+  // Particle class for particle system
+  private class Particle {
+    float x, y;
+    float vx, vy;
+    int age = 0;
+    int lifetime = 0;
+    boolean active = false;
   }
+                      }
