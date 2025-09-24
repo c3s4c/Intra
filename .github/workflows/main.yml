@@ -19,14 +19,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Android SDK
+      - name: Install Android SDK + NDK
         run: |
           sudo apt-get update
           sudo apt-get install -y wget unzip
           wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
           mkdir -p $HOME/Android/cmdline-tools
           unzip -q cmdline-tools.zip -d $HOME/Android/cmdline-tools
-          yes | $HOME/Android/cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          yes | $HOME/Android/cmdline-tools/cmdline-tools/bin/sdkmanager --sdk_root=$HOME/Android \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;23.2.8568313"
+
+      - name: Set ANDROID_NDK_HOME
+        run: echo "ANDROID_NDK_HOME=$HOME/Android/ndk/23.2.8568313" >> $GITHUB_ENV
 
       - name: Add Android tools to PATH
         run: echo "$HOME/Android/platform-tools:$HOME/Android/cmdline-tools/cmdline-tools/bin" >> $GITHUB_PATH
