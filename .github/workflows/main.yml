@@ -1,4 +1,4 @@
-name: Android Release Build
+name: Android Debug Build
 
 on:
   push:
@@ -38,19 +38,19 @@ jobs:
       - name: Add Android tools to PATH
         run: echo "$HOME/Android/platform-tools:$HOME/Android/cmdline-tools/cmdline-tools/bin" >> $GITHUB_PATH
 
-      - name: Build APK (Release)
+      - name: Build APK (Debug)
         working-directory: Android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleDebug
 
-      - name: Upload APK as artifact
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: Intra-Release-APK
-          path: Android/app/build/outputs/apk/release/*.apk
+          name: Intra-Debug-APK
+          path: Android/app/build/outputs/apk/debug/*.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: Android/app/build/outputs/apk/release/*.apk
+          files: Android/app/build/outputs/apk/debug/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
