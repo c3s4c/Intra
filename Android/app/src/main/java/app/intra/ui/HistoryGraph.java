@@ -111,7 +111,7 @@ public class HistoryGraph extends View implements ActivityReceiver {
     glowPaint.setStrokeCap(Paint.Cap.ROUND);
     glowPaint.setColor(color);
     if (Build.VERSION.SDK_INT >= VERSION_CODES.HONEYCOMB) {
-      glowPaint.setMaskFilter(new BlurMaskFilter(15, BlurMaskFilter.Blur.NORMAL));
+      glowPaint.setMaskFilter(new BlurMaskFilter(5, BlurMaskFilter.Blur.NORMAL));
     }
 
     // Fill paint for area under curve
