@@ -16,14 +16,12 @@ limitations under the License.
 package app.intra.ui;
 
 import android.content.Context;
-import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Shader.TileMode;
 import android.os.Build;
-import android.os.Build.VERSION_CODES;
 import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.View;
@@ -47,17 +45,16 @@ public class HistoryGraph extends View implements ActivityReceiver {
   private static final int RESOLUTION_MS = 100;  // Compute the QPS curve with 100ms granularity.
   private static final int PULSE_INTERVAL_MS = 10 * 1000;  // Mark a pulse every 10 seconds
 
-  private static final int DATA_STROKE_WIDTH = 10;  // Display pixels
+  private static final int DATA_STROKE_WIDTH = 6;  // کاهش ضخامت خط
   private static final float BOTTOM_MARGIN_FRACTION = 0.05f;  // Space to reserve below y=0.
   private static final float RIGHT_MARGIN_FRACTION = 0.1f;  // Space to reserve right of t=0.
 
   private QueryTracker tracker;
   private Paint dataPaint;   // Paint for the QPS curve itself.
   private Paint pulsePaint;  // Paint for the radiating pulses that also serve as x-axis marks.
-  private Paint glowPaint;   // Paint for glow effect
+  private Paint glowPaint;   // Paint for subtle glow effect
   private Paint fillPaint;   // Paint for filled area
   private Paint particlePaint; // Paint for particles
-  private Paint sparklePaint; // Paint for sparkle effects
 
   // Preallocate the curve to reduce garbage collection pressure.
   private int range = WINDOW_MS / RESOLUTION_MS;
@@ -74,12 +71,11 @@ public class HistoryGraph extends View implements ActivityReceiver {
   // Value of SystemClock.elapsedRealtime() for the current frame.
   private long now;
 
-  // Particle system variables
-  private Particle[] particles = new Particle[50];
+  // Particle system variables - کاهش تعداد ذرات
+  private Particle[] particles = new Particle[15]; // فقط 15 ذره
   private Random random = new Random();
-
-  // Sparkle effects
-  private float[] sparkles = new float[20]; // x, y, size, alpha for each sparkle
+  private long lastParticleUpdate = 0;
+  private static final long PARTICLE_UPDATE_INTERVAL = 100; // آپدیت هر 100ms
 
   public HistoryGraph(Context context, AttributeSet attrs) {
     super(context, attrs);
@@ -91,36 +87,30 @@ public class HistoryGraph extends View implements ActivityReceiver {
     for (int i = 0; i < particles.length; i++) {
       particles[i] = new Particle();
     }
-    
-    // Initialize sparkles
-    for (int i = 0; i < sparkles.length; i += 4) {
-      sparkles[i] = -1; // Mark as inactive
-    }
 
-    // Main data paint with glow effect
+    // Main data paint - ساده‌تر
     dataPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     dataPaint.setStrokeWidth(DATA_STROKE_WIDTH);
     dataPaint.setStyle(Paint.Style.STROKE);
     dataPaint.setStrokeCap(Paint.Cap.ROUND);
     dataPaint.setColor(color);
 
-    // Glow effect paint
+    // Subtle glow effect - بسیار سبک
     glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    glowPaint.setStrokeWidth(DATA_STROKE_WIDTH + 8);
+    glowPaint.setStrokeWidth(DATA_STROKE_WIDTH + 3); // کاهش ضخامت
     glowPaint.setStyle(Paint.Style.STROKE);
     glowPaint.setStrokeCap(Paint.Cap.ROUND);
     glowPaint.setColor(color);
-    if (Build.VERSION.SDK_INT >= VERSION_CODES.HONEYCOMB) {
-      glowPaint.setMaskFilter(new BlurMaskFilter(15, BlurMaskFilter.Blur.NORMAL));
-    }
+    glowPaint.setAlpha(80); // شفافیت بیشتر
 
     // Fill paint for area under curve
     fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     fillPaint.setStyle(Paint.Style.FILL);
+    fillPaint.setAlpha(40); // بسیار سبک
 
     // Pulse paint
     pulsePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    pulsePaint.setStrokeWidth(0);
+    pulsePaint.setStrokeWidth(1);
     pulsePaint.setStyle(Paint.Style.STROKE);
     pulsePaint.setColor(color);
 
@@ -128,11 +118,7 @@ public class HistoryGraph extends View implements ActivityReceiver {
     particlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     particlePaint.setStyle(Paint.Style.FILL);
     particlePaint.setColor(color);
-
-    // Sparkle paint
-    sparklePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    sparklePaint.setStyle(Paint.Style.FILL);
-    sparklePaint.setColor(0xFFFFFFFF); // White sparkles
+    particlePaint.setAlpha(150); // شفافیت متوسط
   }
 
   /**
@@ -143,8 +129,8 @@ public class HistoryGraph extends View implements ActivityReceiver {
     glowPaint.setColor(color);
     pulsePaint.setColor(color);
     particlePaint.setColor(color);
-    updateDataShader(getWidth());
-    updateFillShader(getWidth(), getHeight());
+    fillPaint.setColor(color);
+    updateShaders(getWidth(), getHeight());
   }
 
   // Gaussian curve formula.  (Not normalized.)
@@ -211,21 +197,19 @@ public class HistoryGraph extends View implements ActivityReceiver {
 
   @Override
   protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-    updateDataShader(w);
-    updateFillShader(w, h);
+    updateShaders(w, h);
   }
 
-  private void updateDataShader(int width) {
+  private void updateShaders(int width, int height) {
     int color = dataPaint.getColor();
-    int glowColor = color | 0xFF000000; // Ensure full opacity for glow
-    glowPaint.setShader(new LinearGradient(0, 0, width, 0,
-        glowColor, glowColor & 0x80FFFFFF, TileMode.CLAMP));
-  }
-
-  private void updateFillShader(int width, int height) {
-    int color = dataPaint.getColor();
+    
+    // گرادیان ساده برای خط اصلی
+    dataPaint.setShader(new LinearGradient(0, 0, width, 0,
+        color, color, TileMode.CLAMP)); // بدون گرادیان پیچیده
+        
+    // گرادیان سبک برای پرکردن
     fillPaint.setShader(new LinearGradient(0, 0, 0, height,
-        color & 0x60FFFFFF, color & 0x10FFFFFF, TileMode.CLAMP));
+        color & 0x28FFFFFF, color & 0x08FFFFFF, TileMode.CLAMP));
   }
 
   @Override
@@ -233,7 +217,6 @@ public class HistoryGraph extends View implements ActivityReceiver {
     int wMode = MeasureSpec.getMode(w);
     int width;
     if (wMode == MeasureSpec.AT_MOST || wMode == MeasureSpec.EXACTLY) {
-      // Always fill the whole width.
       width = MeasureSpec.getSize(w);
     } else {
       width = getSuggestedMinimumWidth();
@@ -242,10 +225,8 @@ public class HistoryGraph extends View implements ActivityReceiver {
     int hMode = MeasureSpec.getMode(h);
     int height;
     if (hMode == MeasureSpec.EXACTLY) {
-      // Nothing we can do about it.
       height = MeasureSpec.getSize(h);
     } else {
-      // Fill 80% of the height.
       int screenHeight = getResources().getDisplayMetrics().heightPixels;
       height = (int)(0.8 * screenHeight);
       if (hMode == MeasureSpec.AT_MOST) {
@@ -256,13 +237,13 @@ public class HistoryGraph extends View implements ActivityReceiver {
     setMeasuredDimension(width, height);
   }
 
-  // Draw filled area under the curve
+  // Draw filled area under the curve - ساده‌تر
   private void drawFilledArea(Canvas canvas, float xoffset, float yoffset, 
                             float xscale, float yscale) {
-    if (curveIsEmpty) return;
+    if (curveIsEmpty || max == 0) return;
 
     Path path = new Path();
-    path.moveTo(xoffset, yoffset); // Start at bottom left
+    path.moveTo(xoffset, yoffset);
     
     for (int i = 0; i < curve.length; i++) {
       float x = i * xscale + xoffset;
@@ -274,36 +255,52 @@ public class HistoryGraph extends View implements ActivityReceiver {
       }
     }
     
-    // Close the path back to bottom right
     path.lineTo((curve.length - 1) * xscale + xoffset, yoffset);
     path.close();
     
     canvas.drawPath(path, fillPaint);
   }
 
-  // Draw glow effect behind the main line
+  // Draw subtle glow effect - بسیار سبک
   private void drawGlowEffect(Canvas canvas, float[] lines) {
     if (curveIsEmpty) return;
-    canvas.drawLines(lines, glowPaint);
+    
+    // فقط برای بخش‌های پرترافیک glow بکش
+    boolean hasSignificantData = false;
+    for (float value : curve) {
+      if (value > max * 0.1f) {
+        hasSignificantData = true;
+        break;
+      }
+    }
+    
+    if (hasSignificantData) {
+      canvas.drawLines(lines, glowPaint);
+    }
   }
 
-  // Draw particles that follow the curve peaks
+  // Draw lightweight particles - بهینه‌شده
   private void drawParticles(Canvas canvas, float xoffset, float yoffset, 
                            float xscale, float yscale) {
     if (curveIsEmpty) return;
 
-    // Update particles
+    long currentTime = SystemClock.elapsedRealtime();
+    if (currentTime - lastParticleUpdate < PARTICLE_UPDATE_INTERVAL) {
+      return; // آپدیت کمتر برای عملکرد بهتر
+    }
+    lastParticleUpdate = currentTime;
+
     for (Particle particle : particles) {
-      if (!particle.active || particle.age > particle.lifetime) {
-        // Spawn new particle at random peak
-        if (random.nextFloat() < 0.3f) { // 30% chance each frame
+      if (!particle.active) {
+        // شانس کمتری برای ایجاد ذره جدید
+        if (random.nextFloat() < 0.1f) {
           int peakIndex = findRandomPeak();
           if (peakIndex != -1) {
             particle.x = peakIndex * xscale + xoffset;
             particle.y = curve[peakIndex] * yscale + yoffset;
-            particle.vx = (random.nextFloat() - 0.5f) * 2f;
-            particle.vy = (random.nextFloat() - 0.5f) * 3f;
-            particle.lifetime = random.nextInt(60) + 30;
+            particle.vx = (random.nextFloat() - 0.5f) * 1.5f;
+            particle.vy = (random.nextFloat() - 0.5f) * 2f;
+            particle.lifetime = random.nextInt(40) + 20;
             particle.age = 0;
             particle.active = true;
           }
@@ -311,87 +308,47 @@ public class HistoryGraph extends View implements ActivityReceiver {
       }
 
       if (particle.active) {
-        // Update position
         particle.x += particle.vx;
         particle.y += particle.vy;
-        particle.vy += 0.1f; // Gravity
+        particle.vy += 0.05f; // جاذبه سبک‌تر
         particle.age++;
         
-        // Draw particle
-        float alpha = 1f - (float) particle.age / particle.lifetime;
-        particlePaint.setAlpha((int) (alpha * 255));
-        canvas.drawCircle(particle.x, particle.y, 2f, particlePaint);
+        if (particle.age > particle.lifetime) {
+          particle.active = false;
+        } else {
+          float alpha = 1f - (float) particle.age / particle.lifetime;
+          particlePaint.setAlpha((int) (alpha * 120)); // شفافیت کمتر
+          canvas.drawCircle(particle.x, particle.y, 1.5f, particlePaint); // ذرات کوچک‌تر
+        }
       }
     }
   }
 
-  // Find random peak in the curve for particle spawning
   private int findRandomPeak() {
     if (curveIsEmpty) return -1;
     
-    // Find local maxima
-    for (int attempt = 0; attempt < 10; attempt++) {
+    // فقط نقاط واقعاً پرترافیک
+    for (int attempt = 0; attempt < 5; attempt++) {
       int i = random.nextInt(curve.length - 2) + 1;
-      if (curve[i] > curve[i-1] && curve[i] > curve[i+1] && curve[i] > max * 0.2f) {
+      if (curve[i] > max * 0.3f && curve[i] > curve[i-1] && curve[i] > curve[i+1]) {
         return i;
       }
     }
     return -1;
   }
 
-  // Draw sparkling effects at high points
-  private void drawSparkles(Canvas canvas, float xoffset, float yoffset,
-                          float xscale, float yscale) {
-    if (curveIsEmpty) return;
-
-    for (int i = 0; i < sparkles.length; i += 4) {
-      if (sparkles[i] == -1 && random.nextFloat() < 0.02f) {
-        // Spawn new sparkle at high point
-        int sparkleIndex = findHighPoint();
-        if (sparkleIndex != -1) {
-          sparkles[i] = sparkleIndex * xscale + xoffset; // x
-          sparkles[i+1] = curve[sparkleIndex] * yscale + yoffset; // y
-          sparkles[i+2] = random.nextFloat() * 3f + 1f; // size
-          sparkles[i+3] = 1f; // alpha
-        }
-      }
-
-      if (sparkles[i] != -1) {
-        // Update and draw sparkle
-        sparkles[i+3] -= 0.05f; // Fade out
-        if (sparkles[i+3] <= 0) {
-          sparkles[i] = -1; // Deactivate
-        } else {
-          sparklePaint.setAlpha((int) (sparkles[i+3] * 255));
-          canvas.drawCircle(sparkles[i], sparkles[i+1], sparkles[i+2], sparklePaint);
-          
-          // Draw glow around sparkle
-          sparklePaint.setAlpha((int) (sparkles[i+3] * 128));
-          canvas.drawCircle(sparkles[i], sparkles[i+1], sparkles[i+2] * 2f, sparklePaint);
-        }
-      }
-    }
-  }
-
-  private int findHighPoint() {
-    if (curveIsEmpty) return -1;
-    
-    for (int i = 1; i < curve.length - 1; i++) {
-      if (curve[i] > max * 0.5f && curve[i] > curve[i-1] && curve[i] > curve[i+1]) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  // Draw ripple effects from the current point
+  // Draw simple ripple effects - ساده‌تر
   private void drawRippleEffects(Canvas canvas, float x, float y, float currentValue) {
-    float intensity = currentValue / Math.max(max, 1f);
+    if (curveIsEmpty || max == 0) return;
     
-    for (int i = 0; i < 3; i++) {
-      float radius = DATA_STROKE_WIDTH * (1 + i) * intensity;
-      int alpha = (int) ((1f - i * 0.3f) * intensity * 100);
+    float intensity = Math.min(currentValue / max, 1f);
+    if (intensity < 0.2f) return; // فقط برای ترافیک قابل توجه
+    
+    for (int i = 0; i < 2; i++) { // فقط 2 موج
+      float radius = DATA_STROKE_WIDTH * (1 + i) * intensity * 0.5f;
+      int alpha = (int) ((1f - i * 0.5f) * intensity * 60);
       pulsePaint.setAlpha(alpha);
+      pulsePaint.setStrokeWidth(1);
       canvas.drawCircle(x, y, radius, pulsePaint);
     }
   }
@@ -399,15 +356,11 @@ public class HistoryGraph extends View implements ActivityReceiver {
   @Override
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
-    // Normally the coordinate system puts 0,0 at the top left.  This puts it at the bottom right,
-    // with positive axes pointed up and left.
     canvas.rotate(180, getWidth() / 2, getHeight() / 2);
 
-    // Scale factors based on current window size.
     float xoffset = (float) (getWidth()) * RIGHT_MARGIN_FRACTION;
     float usableWidth = getWidth() - xoffset;
     float yoffset = getHeight() * BOTTOM_MARGIN_FRACTION;
-    // Make graph fit in the available height and never be taller than the width.
     float usableHeight = Math.min(getWidth(), getHeight() - (DATA_STROKE_WIDTH + yoffset));
 
     now = SystemClock.elapsedRealtime();
@@ -419,7 +372,6 @@ public class HistoryGraph extends View implements ActivityReceiver {
       updateMax();
       yscale = max == 0 ? 0 : usableHeight / max;
 
-      // Convert the curve into lines in the appropriate scale, and draw it.
       for (int i = 1; i < curve.length; ++i) {
         int j = (i - 1) * 4;
         lines[j] = (i - 1) * xscale + xoffset;
@@ -428,48 +380,42 @@ public class HistoryGraph extends View implements ActivityReceiver {
         lines[j + 3] = curve[i] * yscale + yoffset;
       }
 
-      // Draw all effects in order
+      // ترسیم بهینه‌شده با افکت‌های سبک
       drawFilledArea(canvas, xoffset, yoffset, xscale, yscale);
       drawGlowEffect(canvas, lines);
       canvas.drawLines(lines, dataPaint);
       drawParticles(canvas, xoffset, yoffset, xscale, yscale);
-      drawSparkles(canvas, xoffset, yoffset, xscale, yscale);
       
       rightEndY = lines[1];
     } else {
       max = 0;
-      // Draw a horizontal line at y = 0.
       canvas.drawLine(xoffset, yoffset, xoffset + usableWidth, yoffset, dataPaint);
       rightEndY = yoffset;
     }
 
-    // Draw enhanced circle at the right end of the line with ripple effects
-    float tagRadius = 3 * DATA_STROKE_WIDTH;
+    // نقطه انتهایی ساده‌تر
+    float tagRadius = 2 * DATA_STROKE_WIDTH;
     float tagX = xoffset - tagRadius;
     
-    // Ripple effects from current point
     drawRippleEffects(canvas, tagX, rightEndY, curveIsEmpty ? 0 : curve[curve.length-1]);
     
-    // Enhanced circle with glow
-    glowPaint.setStrokeWidth(tagRadius * 2);
-    canvas.drawCircle(tagX, rightEndY, tagRadius, glowPaint);
+    // دایره ساده بدون افکت‌های سنگین
     canvas.drawCircle(tagX, rightEndY, tagRadius, dataPaint);
 
-    // Draw pulses at regular intervals, growing and fading with age.
+    // پالس‌های سبک‌تر
     float maxRadius = getWidth() - tagX;
     for (long age = now % PULSE_INTERVAL_MS; age < WINDOW_MS; age += PULSE_INTERVAL_MS) {
       float fraction = ((float) age) / WINDOW_MS;
       float radius = tagRadius + fraction * (maxRadius - tagRadius);
-      int alpha = (int) (255 * (1 - fraction));
+      int alpha = (int) (180 * (1 - fraction)); // شفافیت کمتر
       pulsePaint.setAlpha(alpha);
       canvas.drawCircle(tagX, yoffset, radius, pulsePaint);
     }
 
-    // Draw the next frame at the UI's preferred update frequency.
     postInvalidateOnAnimation();
   }
 
-  // Particle class for particle system
+  // Particle class ساده‌شده
   private class Particle {
     float x, y;
     float vx, vy;
@@ -477,4 +423,4 @@ public class HistoryGraph extends View implements ActivityReceiver {
     int lifetime = 0;
     boolean active = false;
   }
-                      }
+}
