@@ -106,7 +106,7 @@ public class HistoryGraph extends View implements ActivityReceiver {
 
     // Glow effect paint
     glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    glowPaint.setStrokeWidth(DATA_STROKE_WIDTH + 8);
+    glowPaint.setStrokeWidth(DATA_STROKE_WIDTH + 2);
     glowPaint.setStyle(Paint.Style.STROKE);
     glowPaint.setStrokeCap(Paint.Cap.ROUND);
     glowPaint.setColor(color);
@@ -219,7 +219,7 @@ public class HistoryGraph extends View implements ActivityReceiver {
     int color = dataPaint.getColor();
     int glowColor = color | 0xFF000000; // Ensure full opacity for glow
     glowPaint.setShader(new LinearGradient(0, 0, width, 0,
-        glowColor, glowColor & 0x80FFFFFF, TileMode.CLAMP));
+        glowColor, glowColor & 0x20FFFFFF, TileMode.CLAMP));
   }
 
   private void updateFillShader(int width, int height) {
