@@ -47,7 +47,7 @@ public class HistoryGraph extends View implements ActivityReceiver {
   private static final int RESOLUTION_MS = 100;  // Compute the QPS curve with 100ms granularity.
   private static final int PULSE_INTERVAL_MS = 10 * 1000;  // Mark a pulse every 10 seconds
 
-  private static final int DATA_STROKE_WIDTH = 10;  // Display pixels
+  private static final int DATA_STROKE_WIDTH = 4;  // Display pixels
   private static final float BOTTOM_MARGIN_FRACTION = 0.05f;  // Space to reserve below y=0.
   private static final float RIGHT_MARGIN_FRACTION = 0.1f;  // Space to reserve right of t=0.
 
