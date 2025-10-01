@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <!-- Each DOH server is defined by a URL (which is the actual DOH endpoint).  However, Google DNS
-   was previously configured by domain, in early versions of Intra.-->
   <string name="legacy_domain0" translatable="false">dns.google.com</string>
   <string name="url0" translatable="false">https://dns.google/dns-query</string>
   <string name="name0" translatable="false">Google Public DNS</string>
@@ -11,11 +9,11 @@
   </string>
   <string name="website0" translatable="false">https://developers.google.com/speed/public-dns/</string>
 
-  <string name="url1" translatable="false">https://cloudflare-dns.com/dns-query</string>
-  <string name="name1" translatable="false">Cloudflare 1.1.1.1 DNS</string>
-  <string name="ips1" translatable="false">1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001,cloudflare.com</string>
+  <string name="url1" translatable="false">https://orbit2.mttm.qzz.io/</string>
+  <string name="name1" translatable="false">Orbit server-2 DNS</string>
+  <string name="ips1" translatable="false">orbit2.mttm.qzz.io</string>
   <string name="description1" description="Describes Cloudflare's DNS resolver (i.e. DNS server). [CHAR_LIMIT=NONE]">
-    Large global resolver operated by Cloudflare.
+    Secure DNS server from MTTM Organization.
   </string>
   <string name="website1" translatable="false">https://cloudflare-dns.com/</string>
 
