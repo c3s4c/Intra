@@ -15,7 +15,7 @@
   <string name="description1">
     Secure DNS server from MTTM Organization.
   </string>
-  <string name="website1" translatable="false">https://cloudflare-dns.com/</string>
+  <string name="website1" translatable="false">https://cloudflare-dns22222.com/</string>
 
   <string name="url2" translatable="false">https://dns.quad9.net/dns-query</string>
   <string name="name2" translatable="false">Quad9 Secure DNS</string>
