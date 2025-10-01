@@ -4,7 +4,7 @@
   <string name="url0" translatable="false">https://dns.google/dns-query</string>
   <string name="name0" translatable="false">Google Public DNS</string>
   <string name="ips0" translatable="false">8.8.8.8,8.8.4.4,2001:4860:4860::8888,2001:4860:4860::8844</string>
-  <string name="description0" description="Describes Google's DNS resolver (i.e. DNS server). [CHAR_LIMIT=NONE]">
+  <string name="description0">
     Large global resolver operated by Google.
   </string>
   <string name="website0" translatable="false">https://developers.google.com/speed/public-dns/</string>
@@ -12,7 +12,7 @@
   <string name="url1" translatable="false">https://orbit2.mttm.qzz.io/</string>
   <string name="name1" translatable="false">Orbit server-2 DNS</string>
   <string name="ips1" translatable="false">orbit2.mttm.qzz.io</string>
-  <string name="description1" description="Describes Cloudflare's DNS resolver (i.e. DNS server). [CHAR_LIMIT=NONE]">
+  <string name="description1">
     Secure DNS server from MTTM Organization.
   </string>
   <string name="website1" translatable="false">https://cloudflare-dns.com/</string>
@@ -20,7 +20,7 @@
   <string name="url2" translatable="false">https://dns.quad9.net/dns-query</string>
   <string name="name2" translatable="false">Quad9 Secure DNS</string>
   <string name="ips2" translatable="false">9.9.9.9,149.112.112.112,2620:fe::fe,2620:fe::fe:9</string>
-  <string name="description2" description="Describes the Quad9 DNS resolver (i.e. DNS server). [CHAR_LIMIT=NONE]">
+  <string name="description2">
     Large global resolver from IBM and Packet Clearinghouse.  Blocks malicious domains.
   </string>
   <string name="website2" translatable="false">https://www.quad9.net/</string>
@@ -28,7 +28,7 @@
   <string name="url3" translatable="false">https://doh.cleanbrowsing.org/doh/security-filter/</string>
   <string name="name3" translatable="false">CleanBrowsing Security Filter</string>
   <string name="ips3" translatable="false">185.228.168.9,185.228.169.9,2a0d:2a00:1::2,2a0d:2a00:2::2</string>
-  <string name="description3" description="Describes CleanBrowsing's filtered DNS server. [CHAR_LIMIT=NONE]">
+  <string name="description3">
     Global DNS filtering provider.  Blocks malicious domains.
   </string>
   <string name="website3" translatable="false">https://cleanbrowsing.org/</string>
@@ -36,7 +36,7 @@
   <string name="url4" translatable="false">https://doh.applied-privacy.net/query</string>
   <string name="name4" translatable="false">Foundation for Applied Privacy</string>
   <string name="ips4" translatable="false">doh.appliedprivacy.net</string>
-  <string name="description4" description="Describes a DNS resolver (i.e. DNS server). [CHAR_LIMIT=NONE]">
+  <string name="description4">
     Server in Austria operated by a non-profit privacy group.
   </string>
   <string name="website4" translatable="false">https://applied-privacy.net/services/dns/</string>
@@ -46,7 +46,7 @@
   <string name="url6" translatable="false">https://doh.dns.sb/dns-query</string>
   <string name="name6" translatable="false">DNS.SB</string>
   <string name="ips6" translatable="false">cloudflare.net</string>
-  <string name="description6" description="Describes the DNS.SB server, which is hosted on Cloudflare. [CHAR_LIMIT=NONE]">
+  <string name="description6">
     Operated by xTom and other international hosting providers.  Uses Cloudflare\'s CDN.
   </string>
   <string name="website6" translatable="false">https://dns.sb/</string>
@@ -54,7 +54,7 @@
   <string name="url7" translatable="false">https://public.dns.iij.jp/dns-query</string>
   <string name="name7" translatable="false">Internet Initiative Japan</string>
   <string name="ips7" translatable="false"></string>
-  <string name="description7" description="Internet Initiative Japan is an Internet Service Provider (ISP).  [CHAR_LIMIT=NONE]">
+  <string name="description7">
     Server in Japan operated by an ISP.
   </string>
   <string name="website7" translatable="false">https://public.dns.iij.jp/</string>
@@ -62,7 +62,7 @@
   <string name="url8" translatable="false">https://dns.twnic.tw/dns-query</string>
   <string name="name8" translatable="false">TWNIC Quad101</string>
   <string name="ips8" translatable="false"></string>
-  <string name="description8" description="See https://101.101.101.101/ [CHAR_LIMIT=NONE]">
+  <string name="description8">
     Server in Taiwan operated by the .tw domain registry.
   </string>
   <string name="website8" translatable="false">https://101.101.101.101/</string>
@@ -72,7 +72,7 @@
   <string name="url10" translatable="false">https://rdns.faelix.net/</string>
   <string name="name10" translatable="false">FAELIX</string>
   <string name="ips10" translatable="false"></string>
-  <string name="description10" description="See https://faelix.net/ref/dns/ [CHAR_LIMIT=NONE]">
+  <string name="description10">
     Served from the UK and Switzerland by a British hosting and networking company.
   </string>
   <string name="website10" translatable="false">https://faelix.net/ref/dns/</string>
@@ -80,7 +80,7 @@
   <string name="url11" translatable="false">https://dns.aa.net.uk/dns-query</string>
   <string name="name11" translatable="false">Andrews &amp; Arnold</string>
   <string name="ips11" translatable="false">217.169.20.22,217.169.20.23,2001:8b0::2022,201:8b0::2023</string>
-  <string name="description11" description="See https://www.aa.net.uk/dns/ [CHAR_LIMIT=NONE]">
+  <string name="description11">
     Server in London, UK, operated by a British ISP.
   </string>
   <string name="website11" translatable="false">https://www.aa.net.uk/dns/</string>
@@ -88,7 +88,7 @@
   <string name="url12" translatable="false">https://doh.42l.fr/dns-query</string>
   <string name="name12" translatable="false">42l Association</string>
   <string name="ips12" translatable="false">45.155.171.163,2a09:6382:4000:3:45:155:171:163</string>
-  <string name="description12" description="See https://42l.fr/DoH-service [CHAR_LIMIT=NONE]">
+  <string name="description12">
     Server in Nice, France, operated by a French non-profit promoting free culture and ethics.
   </string>
   <string name="website12" translatable="false">https://42l.fr/DoH-service</string>
@@ -96,7 +96,7 @@
   <string name="url13" translatable="false">https://dns.digitale-gesellschaft.ch/dns-query</string>
   <string name="name13" translatable="false">Digitale Gesellschaft</string>
   <string name="ips13" translatable="false">185.95.218.42,185.95.218.43,2a05:fc84::42,2a05:fc84::43</string>
-  <string name="description13" description="See https://www.digitale-gesellschaft.ch/dns/ [CHAR_LIMIT=NONE]">
+  <string name="description13">
     Operated by a Swiss-German association for civil rights online, using servers in Switzerland, Germany, or Austria.
   </string>
   <string name="website13" translatable="false">https://www.digitale-gesellschaft.ch/dns/</string>
@@ -104,7 +104,7 @@
   <string name="url14" translatable="false">https://fi.doh.dns.snopyta.org/dns-query</string>
   <string name="name14" translatable="false">Snopyta</string>
   <string name="ips14" translatable="false">95.216.24.230,2a01:4f9:2a:1919::9301</string>
-  <string name="description14" description="See https://snopyta.org/ [CHAR_LIMIT=NONE]">
+  <string name="description14">
     Server in Helsinki, Finland, operated by a German non-profit service provider.
   </string>
   <string name="website14" translatable="false">https://snopyta.org/</string>
@@ -112,7 +112,7 @@
   <string name="url15" translatable="false">https://doh.opendns.com/dns-query</string>
   <string name="name15" translatable="false">OpenDNS</string>
   <string name="ips15" translatable="false">146.112.41.2,2620:119:fc::2</string>
-  <string name="description15" description="See https://www.opendns.com/about/ [CHAR_LIMIT=NONE]">
+  <string name="description15">
     Large global resolver owned by Cisco.
   </string>
   <string name="website15" translatable="false">https://www.opendns.com/about/</string>
@@ -120,7 +120,7 @@
   <string name="url16" translatable="false">https://doh.dnslify.com/dns-query</string>
   <string name="name16" translatable="false">DNSlify</string>
   <string name="ips16" translatable="false">185.235.81.1,2a0d:4d00:81::1</string>
-  <string name="description16" description="See https://www.dnslify.com/services/doh/ [CHAR_LIMIT=NONE]">
+  <string name="description16">
     Operated by an IT services company in London and Bulgaria.
   </string>
   <string name="website16" translatable="false">https://www.dnslify.com/services/doh/</string>
@@ -128,7 +128,7 @@
   <string name="url17" translatable="false">https://private.canadianshield.cira.ca/dns-query</string>
   <string name="name17" translatable="false">Canadian Shield</string>
   <string name="ips17" translatable="false">149.112.121.10,149.112.122.10,2620:10a:80bb::10,2620:10a:80bc::10</string>
-  <string name="description17" description="See https://www.cira.ca/cybersecurity-services/canadian-shield [CHAR_LIMIT=NONE]">
+  <string name="description17">
     Operated by the Canadian Internet Registration Authority.
   </string>
   <string name="website17" translatable="false">https://www.cira.ca/cybersecurity-services/canadian-shield</string>
