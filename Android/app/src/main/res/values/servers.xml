@@ -9,7 +9,7 @@
   </string>
   <string name="website0" translatable="false">https://developers.google.com/speed/public-dns/</string>
 
-  <string name="url1" translatable="false">https://orbit2.mttm.qzz.io/</string>
+  <string name="url1" translatable="false">https://s2.orbit.mttm.qzz.io/</string>
   <string name="name1" translatable="false">Orbit DNS-server-2</string>
   <string name="ips1" translatable="false">orbit2.mttm.qzz.io</string>
   <string name="description1">
